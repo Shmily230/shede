@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>舍得 · 潮流好物</title>
+  <!-- config 得写在这个 CDN 脚本后面 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // 品牌色和阴影，页面里少写十六进制
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7' }
+          },
+          boxShadow: { card: '0 18px 40px -24px rgba(2,132,199,.45)' }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* 点立即选购平滑滚过去，别生硬跳 */
+    html { scroll-behavior: smooth; }
+    /* 标题最多两行，省得卡片高度不齐 */
+    .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    /* 加载占位，让人知道在转不是坏了 */
+    .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%); background-size: 400% 100%; animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  </style>
+</head>
+<body class="bg-neutral-50 text-neutral-900 antialiased">
+
+  <!-- 顶部导航：logo、搜索、订单、登录 -->
+  <header class="sticky top-0 z-40 border-b border-neutral-200/70 bg-white/85 backdrop-blur">
+    <div class="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:gap-6">
+      <a href="index.html" class="flex shrink-0 items-center gap-2">
+        <span class="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-cyan-400 text-lg font-black text-white shadow-card">舍</span>
+        <span class="hidden text-xl font-black tracking-[0.15em] sm:block">舍得</span>
+      </a>
+
+      <!-- 搜索框，按回车才发请求 -->
+      <div class="relative min-w-0 flex-1">
+        <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="9" cy="9" r="6"></circle><path d="M13.5 13.5L18 18" stroke-linecap="round"></path>
+        </svg>
+        <input id="searchInput" type="search" placeholder="搜索好物，例如 Sneaker"
+               class="w-full rounded-full border border-transparent bg-neutral-100 py-2.5 pl-11 pr-4 text-sm outline-none transition focus:border-sky-300 focus:bg-white focus:ring-2 focus:ring-sky-100" />
+      </div>
+
+      <!-- 订单入口 -->
+      <button id="ordersEntry" class="flex shrink-0 items-center gap-1 rounded-full px-2 py-2 text-sm text-neutral-600 transition hover:bg-neutral-100 sm:px-3">
+        <span class="sm:hidden">订单</span><span class="hidden sm:inline">我的订单</span>
+      </button>
+      <button id="authBtn" class="shrink-0 rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700">登录</button>
+    </div>
+  </header>
+
+  <!-- Banner，纯展示 -->
+  <section class="mx-auto max-w-6xl px-4 pt-6">
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-500 via-sky-400 to-cyan-300 px-6 py-10 text-white sm:px-10 sm:py-14">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80">New Season</p>
+      <h1 class="mt-3 text-3xl font-black leading-tight sm:text-4xl">年轻人都在逛的<br />潮流好物集市</h1>
+      <p class="mt-3 max-w-md text-sm text-white/85">正品保障 · 闪电发货 · 7 天无理由退换</p>
+      <a href="#products" class="mt-6 inline-flex rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-sky-600 shadow-lg shadow-sky-600/20 transition hover:bg-sky-50">立即选购</a>
+      <div class="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full bg-white/20 blur-2xl"></div>
+      <div class="pointer-events-none absolute -bottom-16 right-16 h-40 w-40 rounded-full bg-cyan-200/30 blur-3xl"></div>
+    </div>
+  </section>
+
+  <!-- 商品列表 -->
+  <main id="products" class="mx-auto max-w-6xl px-4 pb-16 pt-10">
+    <div class="flex items-end justify-between">
+      <div>
+        <h2 class="text-xl font-bold sm:text-2xl">为你精选</h2>
+        <!-- 共 N 件商品 -->
+        <p id="listSummary" class="mt-1 text-xs text-neutral-400">正在加载商品…</p>
+      </div>
+      <!-- 有搜索词才显示 -->
+      <button id="resetBtn" class="hidden rounded-full border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 hover:bg-white">清除筛选</button>
+    </div>
+
+    <!-- 卡片都塞这个空盒子 -->
+    <div id="productGrid" class="mt-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4"></div>
+
+    <!-- 列表空了才显示 -->
+    <div id="emptyState" class="hidden flex-col items-center gap-3 py-20 text-center">
+      <div class="grid h-16 w-16 place-items-center rounded-2xl bg-neutral-100 text-2xl">🛍️</div>
+      <p class="text-sm text-neutral-500">没有找到相关商品，换个关键词试试</p>
+    </div>
+
+    <!-- 分页 -->
+    <div id="pager" class="mt-10 flex items-center justify-center gap-3">
+      <button id="prevBtn" class="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-600 transition hover:border-sky-300 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-40">上一页</button>
+      <span id="pageInfo" class="text-sm text-neutral-500">1 / 1</span>
+      <button id="nextBtn" class="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-600 transition hover:border-sky-300 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-40">下一页</button>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="border-t border-neutral-200/70 bg-white">
+    <div class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-8 text-xs text-neutral-400 sm:flex-row sm:justify-between">
+      <p>© 2026 舍得 Shede · 课程实战项目</p>
+      <p>Spring Boot 2.7 · MyBatis · Redis · 支付宝沙箱</p>
+    </div>
+  </footer>
+
+  <!-- 公共脚本要先引，下面要用 Shede -->
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var Shede = window.Shede;
+      var state = { pageNum: 1, pageSize: 8, keyword: '', total: 0, totalPage: 1 };
+
+      var grid = document.getElementById('productGrid');
+      var emptyState = document.getElementById('emptyState');
+      var summary = document.getElementById('listSummary');
+      var pageInfo = document.getElementById('pageInfo');
+      var prevBtn = document.getElementById('prevBtn');
+      var nextBtn = document.getElementById('nextBtn');
+      var authBtn = document.getElementById('authBtn');
+      var ordersEntry = document.getElementById('ordersEntry');
+      var resetBtn = document.getElementById('resetBtn');
+
+      // 拼卡片，文本必须转义
+      function cardTemplate(product) {
+        var name = Shede.escapeHtml(product.name);
+        var subtitle = Shede.escapeHtml(product.subtitle || '');
+        // 详情页参数要 encode
+        var url = 'product-detail.html?productId=' + encodeURIComponent(product.productId);
+        return '' +
+          '<a href="' + url + '" class="group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-neutral-100 transition hover:-translate-y-1 hover:shadow-card">' +
+          '  <div class="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-sky-100 via-neutral-50 to-neutral-200">' +
+          '    <div class="absolute inset-0 grid place-items-center">' +
+          '      <span class="text-4xl font-black text-sky-200/90 drop-shadow-sm">舍得</span>' +
+          '    </div>' +
+          '    <span class="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-sky-600">现货</span>' +
+          '  </div>' +
+          '  <div class="flex flex-1 flex-col gap-1 p-4">' +
+          '    <h3 class="clamp-2 text-sm font-semibold leading-snug">' + name + '</h3>' +
+          '    <p class="clamp-2 text-xs text-neutral-400">' + subtitle + '</p>' +
+          '    <div class="mt-auto flex items-end justify-between pt-2">' +
+          '      <span class="text-lg font-black text-sky-600">' + Shede.money(product.price) + '</span>' +
+          '      <span class="text-[11px] text-neutral-400">库存 ' + (product.stock == null ? 0 : product.stock) + '</span>' +
+          '    </div>' +
+          '  </div>' +
+          '</a>';
+      }
+
+      // 先铺 8 个骨架，布局不跳
+      function renderSkeleton() {
+        var html = '';
+        for (var i = 0; i < 8; i++) {
+          html += '<div class="overflow-hidden rounded-2xl bg-white ring-1 ring-neutral-100">' +
+            '<div class="skeleton aspect-[4/5]"></div>' +
+            '<div class="space-y-2 p-4"><div class="skeleton h-3 w-4/5 rounded"></div><div class="skeleton h-3 w-2/5 rounded"></div></div>' +
+            '</div>';
+        }
+        grid.innerHTML = html;
+      }
+
+      async function load() {
+        renderSkeleton();
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('flex');
+        try {
+          var page = await Shede.api.listProducts({
+            pageNum: state.pageNum,
+            pageSize: state.pageSize,
+            keyword: state.keyword
+          });
+          var list = (page && page.list) || [];
+          var paging = (page && page.paging) || {};
+          state.total = paging.total || 0;
+          state.totalPage = paging.totalPage || 1;
+
+          grid.innerHTML = list.map(cardTemplate).join('');
+          if (!list.length) {
+            grid.innerHTML = '';
+            emptyState.classList.remove('hidden');
+            emptyState.classList.add('flex');
+          }
+          summary.textContent = state.keyword
+            ? '“' + state.keyword + '” 共 ' + state.total + ' 件商品'
+            : '共 ' + state.total + ' 件商品';
+          pageInfo.textContent = state.pageNum + ' / ' + Math.max(state.totalPage, 1);
+          // 到边界就禁用按钮
+          prevBtn.disabled = state.pageNum <= 1;
+          nextBtn.disabled = state.pageNum >= state.totalPage;
+          resetBtn.classList.toggle('hidden', !state.keyword);
+        } catch (e) {
+          // 出错宁可空列表，也别留着旧数据骗人
+          grid.innerHTML = '';
+          summary.textContent = '加载失败';
+          Shede.toast(e.message, 'error');
+        }
+      }
+
+      // 搜索回车才发请求
+      document.getElementById('searchInput').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          state.keyword = this.value.trim();
+          // 换关键词得回第一页
+          state.pageNum = 1;
+          load();
+        }
+      });
+
+      resetBtn.addEventListener('click', function () {
+        document.getElementById('searchInput').value = '';
+        state.keyword = '';
+        state.pageNum = 1;
+        load();
+      });
+
+      prevBtn.addEventListener('click', function () {
+        if (state.pageNum > 1) {
+          state.pageNum--;
+          load();
+          document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+
+      nextBtn.addEventListener('click', function () {
+        if (state.pageNum < state.totalPage) {
+          state.pageNum++;
+          load();
+          document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+
+      // 切登录态只换文案和 class
+      function renderAuthButton() {
+        var user = Shede.auth.getUser();
+        if (user) {
+          authBtn.textContent = user.nickname || user.username;
+          authBtn.className = 'shrink-0 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition hover:border-sky-300 hover:text-sky-600';
+          ordersEntry.classList.add('sm:flex');
+        } else {
+          authBtn.textContent = '登录';
+          authBtn.className = 'shrink-0 rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700';
+        }
+      }
+
+      // 弹窗登录成功后会回调这里
+      Shede.onAuthChange = function () { renderAuthButton(); };
+
+      // 没登录就跳登录页，带上回跳地址
+      authBtn.addEventListener('click', function () {
+        var user = Shede.auth.getUser();
+        if (user) {
+          if (confirm('当前账号：' + user.username + '\n点击确定退出登录')) {
+            Shede.auth.logout();
+            renderAuthButton();
+            Shede.toast('已退出登录');
+          }
+          return;
+        }
+        location.href = 'login.html?redirect=' + encodeURIComponent('index.html');
+      });
+
+      ordersEntry.addEventListener('click', function () {
+        location.href = 'orders.html';
+      });
+
+      // 初始化：先画登录态再拉列表
+      renderAuthButton();
+      load();
+    })();
+  </script>
+</body>
+</html>

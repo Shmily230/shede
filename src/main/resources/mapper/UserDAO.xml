@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youkeda.shede.dao.UserDAO">
+
+    <!-- 查的列跟 DO 字段对上 -->
+    <sql id="Base_Column_List">
+        id, user_id, username, password, nickname, phone, email, avatar, status, gmt_created, gmt_modified
+    </sql>
+
+    <!-- id 自增，建表和改的时间交给数据库 -->
+    <insert id="insert" parameterType="com.youkeda.shede.dataobject.UserDO"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `user` (user_id, username, password, nickname, phone, email, avatar, status)
+        VALUES (#{userId}, #{username}, #{password}, #{nickname}, #{phone}, #{email}, #{avatar}, #{status})
+    </insert>
+
+    <select id="selectById" resultType="com.youkeda.shede.dataobject.UserDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `user` WHERE id = #{id}
+    </select>
+
+    <select id="selectByUserId" resultType="com.youkeda.shede.dataobject.UserDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `user` WHERE user_id = #{userId} LIMIT 1
+    </select>
+
+    <select id="selectByUsername" resultType="com.youkeda.shede.dataobject.UserDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `user` WHERE username = #{username} LIMIT 1
+    </select>
+
+    <!-- 返回 0 就是没重名，能注册 -->
+    <select id="countByUsername" resultType="int">
+        SELECT COUNT(*) FROM `user` WHERE username = #{username}
+    </select>
+
+    <!-- 只更新传了值的列，没传的不动 -->
+    <update id="updateById" parameterType="com.youkeda.shede.dataobject.UserDO">
+        UPDATE `user`
+        <set>
+            <if test="password != null">password = #{password},</if>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByUserId">
+        DELETE FROM `user` WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youkeda.shede.dao.PaymentRecordDAO">
+
+    <!-- 查的列跟 PaymentRecordDO 对上 -->
+    <sql id="Base_Column_List">
+        id, payment_id, order_id, user_id, pay_amount, pay_channel, trade_no, subject, pay_status, pay_time,
+        notify_body, gmt_created, gmt_modified
+    </sql>
+
+    <!-- 发起支付先插一条，pay_status 给 0 -->
+    <insert id="insert" parameterType="com.youkeda.shede.dataobject.PaymentRecordDO"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO payment_record (payment_id, order_id, user_id, pay_amount, pay_channel, trade_no, subject,
+                                    pay_status, pay_time)
+        VALUES (#{paymentId}, #{orderId}, #{userId}, #{payAmount}, #{payChannel}, #{tradeNo}, #{subject},
+                #{payStatus}, #{payTime})
+    </insert>
+
+    <select id="selectByPaymentId" resultType="com.youkeda.shede.dataobject.PaymentRecordDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM payment_record WHERE payment_id = #{paymentId} LIMIT 1
+    </select>
+
+    <!-- 新的在前 -->
+    <select id="selectByOrderId" resultType="com.youkeda.shede.dataobject.PaymentRecordDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM payment_record WHERE order_id = #{orderId} ORDER BY id DESC
+    </select>
+
+    <select id="selectByTradeNo" resultType="com.youkeda.shede.dataobject.PaymentRecordDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM payment_record WHERE trade_no = #{tradeNo} LIMIT 1
+    </select>
+
+    <!-- 只更新传了值的字段，不然会盖成 null -->
+    <update id="updatePayStatus">
+        UPDATE payment_record
+        SET pay_status = #{payStatus}
+        <if test="tradeNo != null">, trade_no = #{tradeNo}</if>
+        <if test="payTime != null">, pay_time = #{payTime}</if>
+        <if test="notifyBody != null">, notify_body = #{notifyBody}</if>
+        WHERE payment_id = #{paymentId}
+    </update>
+
+    <delete id="deleteByPaymentId">
+        DELETE FROM payment_record WHERE payment_id = #{paymentId}
+    </delete>
+
+</mapper>

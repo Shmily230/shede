@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youkeda.shede.dao.ProductDetailDAO">
+
+    <!-- 查的列跟 ProductDetailDO 对上 -->
+    <sql id="Base_Column_List">
+        id, product_detail_id, product_id, size, color, price, stock, detail_desc, detail_images, status, gmt_created, gmt_modified
+    </sql>
+
+    <insert id="insert" parameterType="com.youkeda.shede.dataobject.ProductDetailDO"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product_detail (product_detail_id, product_id, size, color, price, stock, detail_desc,
+                                    detail_images, status)
+        VALUES (#{productDetailId}, #{productId}, #{size}, #{color}, #{price}, #{stock}, #{detailDesc},
+                #{detailImages}, #{status})
+    </insert>
+
+    <select id="selectById" resultType="com.youkeda.shede.dataobject.ProductDetailDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM product_detail WHERE id = #{id}
+    </select>
+
+    <select id="selectByProductDetailId" resultType="com.youkeda.shede.dataobject.ProductDetailDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM product_detail WHERE product_detail_id = #{productDetailId} LIMIT 1
+    </select>
+
+    <!-- 只查上架的，status = 1 写死在这 -->
+    <select id="selectByProductId" resultType="com.youkeda.shede.dataobject.ProductDetailDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM product_detail
+        WHERE product_id = #{productId} AND status = 1
+        ORDER BY id ASC
+    </select>
+
+    <!-- 库存够才扣，不够返回 0 -->
+    <update id="decreaseStock">
+        UPDATE product_detail
+        SET stock = stock - #{quantity}
+        WHERE product_detail_id = #{productDetailId} AND stock >= #{quantity}
+    </update>
+
+    <!-- 库存够才扣，防超卖靠这条 -->
+    <update id="decreaseStockById">
+        UPDATE product_detail
+        SET stock = stock - #{quantity}
+        WHERE id = #{id} AND stock >= #{quantity}
+    </update>
+
+    <!-- 回补不加条件，别重复调 -->
+    <update id="increaseStockById">
+        UPDATE product_detail SET stock = stock + #{quantity} WHERE id = #{id}
+    </update>
+
+    <update id="increaseStock">
+        UPDATE product_detail SET stock = stock + #{quantity} WHERE product_detail_id = #{productDetailId}
+    </update>
+
+    <!-- 只更新传了值的字段 -->
+    <update id="updateById" parameterType="com.youkeda.shede.dataobject.ProductDetailDO">
+        UPDATE product_detail
+        <set>
+            <if test="size != null">size = #{size},</if>
+            <if test="color != null">color = #{color},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="stock != null">stock = #{stock},</if>
+            <if test="detailDesc != null">detail_desc = #{detailDesc},</if>
+            <if test="detailImages != null">detail_images = #{detailImages},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByProductDetailId">
+        DELETE FROM product_detail WHERE product_detail_id = #{productDetailId}
+    </delete>
+
+</mapper>

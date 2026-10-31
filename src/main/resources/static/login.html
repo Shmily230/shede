@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 · 舍得</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // 品牌色和卡片阴影
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7' } },
+          boxShadow: { card: '0 24px 60px -32px rgba(2,132,199,.5)' }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* 选中的 tab */
+    .tab-active { background: #fff; color: #0284c7; box-shadow: 0 2px 8px rgba(2,132,199,.18); }
+    /* 进来淡一下 */
+    .fade-in { animation: fade .4s ease-out both; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-sky-50 via-white to-cyan-50 text-neutral-900 antialiased">
+
+  <!-- 背景两个光斑，纯装饰 -->
+  <div class="pointer-events-none fixed -left-24 top-10 h-64 w-64 rounded-full bg-sky-200/40 blur-3xl"></div>
+  <div class="pointer-events-none fixed -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-200/40 blur-3xl"></div>
+
+  <main class="relative grid min-h-screen place-items-center px-4 py-10">
+    <div class="w-full max-w-md fade-in">
+      <a href="index.html" class="mb-6 flex items-center justify-center gap-2">
+        <span class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-cyan-400 text-xl font-black text-white shadow-card">舍</span>
+        <span class="text-2xl font-black tracking-[0.15em]">舍得</span>
+      </a>
+
+      <!-- 登录注册卡片 -->
+      <div class="rounded-[28px] bg-white/95 p-7 shadow-card ring-1 ring-neutral-100 sm:p-9">
+        <div class="text-center">
+          <h1 id="pageTitle" class="text-xl font-bold">欢迎回来</h1>
+          <p id="pageSubtitle" class="mt-1 text-xs text-neutral-400">登录后可下单、查看订单</p>
+        </div>
+
+        <!-- 登录 / 注册切换 -->
+        <div class="mt-6 grid grid-cols-2 gap-1 rounded-full bg-neutral-100 p-1 text-sm">
+          <button type="button" data-tab="login" class="rounded-full py-2 font-medium tab-active">登录</button>
+          <button type="button" data-tab="register" class="rounded-full py-2 font-medium text-neutral-500">注册</button>
+        </div>
+
+        <form id="authForm" class="mt-5 space-y-4" autocomplete="on">
+          <label class="block">
+            <span class="text-xs text-neutral-500">用户名</span>
+            <input id="username" required minlength="3" autocomplete="username"
+                   class="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                   placeholder="至少 3 位，例如 shede_tester" />
+          </label>
+          <label class="block">
+            <span class="text-xs text-neutral-500">密码</span>
+            <div class="relative mt-1">
+              <input id="password" type="password" required minlength="6" autocomplete="current-password"
+                     class="w-full rounded-xl border border-neutral-200 px-4 py-3 pr-12 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                     placeholder="至少 6 位" />
+              <button type="button" id="togglePwd"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs text-neutral-400 transition hover:text-sky-600">显示</button>
+            </div>
+          </label>
+
+          <label id="nicknameWrap" class="hidden block">
+            <span class="text-xs text-neutral-500">昵称（可选）</span>
+            <input id="nickname"
+                   class="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                   placeholder="不填默认用用户名" />
+          </label>
+
+          <p id="errorBox" class="hidden text-xs text-rose-500"></p>
+
+          <button id="submitBtn" type="submit"
+                  class="w-full rounded-xl bg-sky-500 py-3.5 text-sm font-semibold text-white shadow-[0_16px_30px_-18px_rgba(14,165,233,.95)] transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60">
+            登录
+          </button>
+        </form>
+
+        <p class="mt-5 text-center text-[11px] leading-relaxed text-neutral-400">
+          登录状态保存在浏览器 localStorage（演示用，非真实 Token 鉴权）
+        </p>
+      </div>
+
+      <p class="mt-6 text-center text-xs text-neutral-400">
+        <a href="index.html" class="transition hover:text-sky-600">← 返回首页</a>
+      </p>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var Shede = window.Shede;
+      var params = new URLSearchParams(location.search);
+
+      // 登录完跳哪，只认站内相对路径，别被拼成外链
+      function safeRedirect(value) {
+        if (!value) {
+          return 'index.html';
+        }
+        if (/^(https?:)?\/\//i.test(value) || value.indexOf(':') >= 0) {
+          return 'index.html';
+        }
+        return value;
+      }
+      var target = safeRedirect(params.get('redirect'));
+
+      var form = document.getElementById('authForm');
+      var usernameInput = document.getElementById('username');
+      var passwordInput = document.getElementById('password');
+      var nicknameInput = document.getElementById('nickname');
+      var nicknameWrap = document.getElementById('nicknameWrap');
+      var errorBox = document.getElementById('errorBox');
+      var submitBtn = document.getElementById('submitBtn');
+      var pageTitle = document.getElementById('pageTitle');
+      var pageSubtitle = document.getElementById('pageSubtitle');
+      var mode = 'login';
+
+      // 切 tab 只改文案和 class，不重建 DOM
+      function renderMode() {
+        var isLogin = mode === 'login';
+        pageTitle.textContent = isLogin ? '欢迎回来' : '创建账号';
+        pageSubtitle.textContent = isLogin ? '登录后可下单、查看订单' : '注册后可下单、查看订单';
+        submitBtn.textContent = isLogin ? '登录' : '注册并登录';
+        nicknameWrap.classList.toggle('hidden', isLogin);
+        passwordInput.setAttribute('autocomplete', isLogin ? 'current-password' : 'new-password');
+        document.querySelectorAll('[data-tab]').forEach(function (tab) {
+          var active = tab.getAttribute('data-tab') === mode;
+          tab.className = 'rounded-full py-2 font-medium ' + (active ? 'tab-active' : 'text-neutral-500');
+        });
+        errorBox.classList.add('hidden');
+      }
+
+      document.querySelectorAll('[data-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          mode = tab.getAttribute('data-tab');
+          renderMode();
+        });
+      });
+
+      // 密码显示/隐藏
+      document.getElementById('togglePwd').addEventListener('click', function () {
+        var isText = passwordInput.type === 'text';
+        passwordInput.type = isText ? 'password' : 'text';
+        this.textContent = isText ? '显示' : '隐藏';
+      });
+
+      // 提交，登录和注册只差调哪个接口
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        var username = usernameInput.value.trim();
+        var password = passwordInput.value;
+        errorBox.classList.add('hidden');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '处理中…';
+        try {
+          var user = mode === 'login'
+            ? await Shede.api.login({ username: username, password: password })
+            : await Shede.api.register({
+                username: username,
+                password: password,
+                nickname: nicknameInput.value.trim() || undefined
+              });
+          Shede.auth.setUser(user);
+          Shede.toast(mode === 'login' ? '登录成功' : '注册成功，已自动登录');
+          setTimeout(function () {
+            location.href = target;
+          }, 500);
+        } catch (e) {
+          errorBox.textContent = e.message;
+          errorBox.classList.remove('hidden');
+          submitBtn.disabled = false;
+          submitBtn.textContent = mode === 'login' ? '登录' : '注册并登录';
+        }
+      });
+
+      // 已经登录了就给个快捷出口
+      var current = Shede.auth.getUser();
+      if (current) {
+        pageSubtitle.textContent = '当前已登录：' + (current.nickname || current.username);
+        submitBtn.textContent = '继续前往';
+        submitBtn.addEventListener('click', function (event) {
+          if (submitBtn.textContent === '继续前往') {
+            event.preventDefault();
+            location.href = target;
+          }
+        }, true);
+      }
+
+      renderMode();
+    })();
+  </script>
+</body>
+</html>

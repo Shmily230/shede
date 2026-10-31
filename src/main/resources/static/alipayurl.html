@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>支付结果 · 舍得</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // 品牌色
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7' } }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* 对勾描边动画 */
+    .check-circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: stroke .6s cubic-bezier(.65,0,.45,1) forwards; }
+    .check-mark { stroke-dasharray: 48; stroke-dashoffset: 48; animation: stroke .35s cubic-bezier(.65,0,.45,1) .55s forwards; }
+    @keyframes stroke { to { stroke-dashoffset: 0; } }
+    .pop { opacity: 0; transform: translateY(8px); animation: pop .5s ease-out .75s forwards; }
+    @keyframes pop { to { opacity: 1; transform: translateY(0); } }
+    .halo { animation: halo 2.2s ease-out infinite; }
+    @keyframes halo { 0% { transform: scale(.9); opacity: .5; } 70% { transform: scale(1.35); opacity: 0; } 100% { opacity: 0; } }
+  </style>
+</head>
+<body class="grid min-h-screen place-items-center bg-gradient-to-b from-sky-50 via-neutral-50 to-white px-4 text-neutral-900 antialiased">
+
+  <main class="w-full max-w-md">
+    <div class="rounded-[28px] bg-white p-8 text-center shadow-[0_24px_60px_-32px_rgba(2,132,199,.45)] ring-1 ring-neutral-100 sm:p-10">
+      <!-- 动效对勾 -->
+      <div class="relative mx-auto grid h-20 w-20 place-items-center">
+        <span class="halo absolute inset-0 rounded-full bg-sky-200/60"></span>
+        <svg class="relative h-20 w-20" viewBox="0 0 66 66" fill="none">
+          <circle class="check-circle" cx="33" cy="33" r="26.5" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round" />
+          <path class="check-mark" d="M20 34.5l8.5 8.5L46 26" stroke="#0ea5e9" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+
+      <div class="pop mt-6">
+        <h1 class="text-2xl font-black tracking-tight">支付成功</h1>
+        <p class="mt-2 text-sm text-neutral-500">我们已收到你的付款，正在为你准备发货</p>
+
+        <dl class="mt-6 space-y-2 rounded-2xl bg-neutral-50 px-4 py-3 text-left text-xs text-neutral-500">
+          <div class="flex justify-between gap-4">
+            <dt>支付流水号</dt>
+            <dd id="outTradeNo" class="max-w-[60%] truncate font-medium text-neutral-700">-</dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt>支付状态</dt>
+            <dd id="tradeStatus" class="font-medium text-sky-600">已支付</dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt>支付方式</dt>
+            <dd class="font-medium text-neutral-700">支付宝（沙箱）</dd>
+          </div>
+        </dl>
+
+        <div class="mt-7 flex flex-col gap-2 sm:flex-row">
+          <a href="index.html" class="flex-1 rounded-full bg-sky-500 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_-12px_rgba(14,165,233,.9)] transition hover:bg-sky-600">
+            查看订单
+          </a>
+          <a href="index.html" class="flex-1 rounded-full border border-neutral-200 py-3 text-sm font-medium text-neutral-600 transition hover:bg-neutral-50">
+            返回首页
+          </a>
+        </div>
+
+        <p class="mt-5 text-[11px] leading-relaxed text-neutral-400">
+          页面展示仅用于体验，最终支付结果以支付宝异步通知为准
+        </p>
+      </div>
+    </div>
+
+    <p class="mt-6 text-center text-[11px] text-neutral-400">© 2026 舍得 Shede · 课程实战项目</p>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      // 同步跳转带过来的参数
+      var params = new URLSearchParams(location.search);
+      var outTradeNo = params.get('out_trade_no');
+      if (outTradeNo) {
+        document.getElementById('outTradeNo').textContent = outTradeNo;
+      }
+      // 这个页只是给人看的，支付成没成看异步通知
+      var tradeStatus = params.get('trade_status');
+      var statusEl = document.getElementById('tradeStatus');
+      if (tradeStatus && tradeStatus !== 'TRADE_SUCCESS' && tradeStatus !== 'TRADE_FINISHED') {
+        document.querySelector('h1').textContent = '支付处理中';
+        statusEl.textContent = tradeStatus;
+        statusEl.className = 'font-medium text-amber-500';
+      }
+      if (window.Shede && Shede.toast) {
+        Shede.toast('支付流程已完成');
+      }
+    })();
+  </script>
+</body>
+</html>

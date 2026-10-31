@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的订单 · 舍得</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // 品牌色和卡片阴影
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7' } },
+          boxShadow: { card: '0 18px 40px -28px rgba(2,132,199,.5)' }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* 加载占位 */
+    .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%); background-size: 400% 100%; animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+    /* 选中的状态 chip */
+    .chip-active { background: #0ea5e9; color: #fff; box-shadow: 0 10px 20px -12px rgba(14,165,233,.9); }
+  </style>
+</head>
+<body class="bg-neutral-50 text-neutral-900 antialiased">
+
+  <!-- 顶部导航 -->
+  <header class="sticky top-0 z-40 border-b border-neutral-200/70 bg-white/85 backdrop-blur">
+    <div class="mx-auto flex h-16 max-w-4xl items-center gap-3 px-4">
+      <a href="index.html" class="grid h-9 w-9 place-items-center rounded-xl bg-neutral-100 text-neutral-500 transition hover:bg-neutral-200" aria-label="返回首页">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="index.html" class="flex items-center gap-2">
+        <span class="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-cyan-400 text-lg font-black text-white shadow-card">舍</span>
+        <span class="hidden text-xl font-black tracking-[0.15em] sm:block">舍得</span>
+      </a>
+      <span class="ml-1 text-sm text-neutral-400">我的订单</span>
+      <div class="ml-auto flex items-center gap-2">
+        <span id="userLabel" class="hidden max-w-[120px] truncate text-xs text-neutral-400 sm:block"></span>
+        <button id="logoutBtn" class="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-500 transition hover:border-rose-200 hover:text-rose-500">退出</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-4xl px-4 pb-16 pt-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-xl font-bold sm:text-2xl">全部订单</h1>
+        <p id="summary" class="mt-1 text-xs text-neutral-400">加载中…</p>
+      </div>
+      <button id="refreshBtn" class="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-500 transition hover:border-sky-300 hover:text-sky-600">刷新</button>
+    </div>
+
+    <!-- 状态筛选，data-status 空就是全部 -->
+    <div id="filters" class="mt-4 flex flex-wrap gap-2">
+      <button data-status="" class="chip-active rounded-full px-4 py-1.5 text-xs font-medium transition">全部</button>
+      <button data-status="0" class="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium text-neutral-600 transition hover:border-sky-300">待付款</button>
+      <button data-status="1" class="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium text-neutral-600 transition hover:border-sky-300">已付款</button>
+      <button data-status="2" class="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium text-neutral-600 transition hover:border-sky-300">已关闭</button>
+      <button data-status="3" class="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium text-neutral-600 transition hover:border-sky-300">已完成</button>
+    </div>
+
+    <!-- 订单列表 -->
+    <div id="orderList" class="mt-5 space-y-3"></div>
+
+    <!-- 空态 -->
+    <div id="emptyState" class="hidden flex-col items-center gap-3 py-24 text-center">
+      <div class="grid h-16 w-16 place-items-center rounded-2xl bg-neutral-100 text-2xl">📦</div>
+      <p class="text-sm text-neutral-500">这里还没有订单</p>
+      <a href="index.html" class="rounded-full bg-sky-500 px-5 py-2 text-xs font-semibold text-white transition hover:bg-sky-600">去逛逛</a>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var Shede = window.Shede;
+      var user = Shede.auth.getUser();
+
+      // 没登录直接去登录页，带上回跳
+      if (!user) {
+        location.replace('login.html?redirect=' + encodeURIComponent('orders.html'));
+        return;
+      }
+
+      var state = { status: '', loading: false };
+      var orderList = document.getElementById('orderList');
+      var emptyState = document.getElementById('emptyState');
+      var summary = document.getElementById('summary');
+      var userLabel = document.getElementById('userLabel');
+      var filters = document.getElementById('filters');
+
+      userLabel.textContent = user.nickname || user.username;
+
+      // 状态对应的文案和颜色
+      var STATUS_STYLE = {
+        0: { text: '待付款', cls: 'bg-amber-50 text-amber-600 ring-amber-100' },
+        1: { text: '已付款', cls: 'bg-emerald-50 text-emerald-600 ring-emerald-100' },
+        2: { text: '已关闭', cls: 'bg-neutral-100 text-neutral-500 ring-neutral-200' },
+        3: { text: '已完成', cls: 'bg-sky-50 text-sky-600 ring-sky-100' }
+      };
+
+      function statusOf(order) {
+        return STATUS_STYLE[order.status] || { text: order.statusName || '未知', cls: 'bg-neutral-100 text-neutral-500 ring-neutral-200' };
+      }
+
+      // 只有待付款才有支付和取消
+      function card(order) {
+        var status = statusOf(order);
+        var actions = '';
+        if (order.status === 0) {
+          actions = '<button data-pay="' + Shede.escapeHtml(order.orderId) + '" class="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-600">继续支付</button>' +
+                    '<button data-cancel="' + Shede.escapeHtml(order.orderId) + '" class="rounded-full border border-neutral-200 px-4 py-1.5 text-xs text-neutral-500 transition hover:border-rose-200 hover:text-rose-500">取消订单</button>';
+        } else {
+          actions = '<button data-copy="' + Shede.escapeHtml(order.orderId) + '" class="rounded-full border border-neutral-200 px-4 py-1.5 text-xs text-neutral-500 transition hover:border-sky-300 hover:text-sky-600">复制订单号</button>';
+        }
+
+        return '' +
+          '<article class="rounded-3xl bg-white p-4 ring-1 ring-neutral-100 transition hover:shadow-card sm:p-5">' +
+          '  <header class="flex items-center justify-between gap-3 border-b border-dashed border-neutral-100 pb-3">' +
+          '    <p class="min-w-0 truncate text-[11px] text-neutral-400">订单号 ' + Shede.escapeHtml(order.orderId) + '</p>' +
+          '    <span class="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ' + status.cls + '">' + Shede.escapeHtml(status.text) + '</span>' +
+          '  </header>' +
+          '  <div class="mt-3 flex gap-4">' +
+          '    <div class="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-sky-100 via-neutral-50 to-neutral-200 sm:h-24 sm:w-24">' +
+          '      <div class="absolute inset-0 grid place-items-center"><span class="text-base font-black text-sky-200/90">舍得</span></div>' +
+          '    </div>' +
+          '    <div class="min-w-0 flex-1">' +
+          '      <p class="truncate text-sm font-semibold">' + Shede.escapeHtml(order.productName) + '</p>' +
+          '      <p class="mt-1 text-[11px] text-neutral-400">尺码 ' + Shede.escapeHtml(order.size || '-') + ' · 数量 ' + order.quantity + ' · 单价 ' + Shede.money(order.unitPrice) + '</p>' +
+          '      <p class="mt-1 text-[11px] text-neutral-400">下单时间 ' + Shede.formatDate(order.gmtCreated || order.payTime) + '</p>' +
+          '      <p class="mt-1 text-[11px] text-neutral-400">支付时间 ' + (order.payTime ? Shede.formatDate(order.payTime) : '未支付') + '</p>' +
+          '    </div>' +
+          '    <div class="shrink-0 text-right">' +
+          '      <p class="text-base font-black text-sky-600 sm:text-lg">' + Shede.money(order.totalAmount) + '</p>' +
+          '    </div>' +
+          '  </div>' +
+          '  <footer class="mt-3 flex flex-wrap justify-end gap-2">' + actions + '</footer>' +
+          '</article>';
+      }
+
+      function skeleton() {
+        var html = '';
+        for (var i = 0; i < 3; i++) {
+          html += '<div class="rounded-3xl bg-white p-4 ring-1 ring-neutral-100 sm:p-5">' +
+            '<div class="skeleton h-3 w-1/3 rounded"></div>' +
+            '<div class="mt-4 flex gap-4"><div class="skeleton h-20 w-20 rounded-2xl"></div>' +
+            '<div class="flex-1 space-y-2"><div class="skeleton h-3 w-1/2 rounded"></div><div class="skeleton h-3 w-1/3 rounded"></div></div></div>' +
+            '</div>';
+        }
+        orderList.innerHTML = html;
+      }
+
+      // 取数 + 渲染都在这
+      async function load() {
+        state.loading = true;
+        skeleton();
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('flex');
+        try {
+          var orders = await Shede.api.orders(user.userId, state.status === '' ? null : state.status);
+          var list = orders || [];
+          orderList.innerHTML = list.map(card).join('');
+          summary.textContent = '共 ' + list.length + ' 笔订单';
+          if (!list.length) {
+            orderList.innerHTML = '';
+            emptyState.classList.remove('hidden');
+            emptyState.classList.add('flex');
+          }
+        } catch (e) {
+          orderList.innerHTML = '<div class="rounded-3xl bg-white p-8 text-center text-sm text-rose-500 ring-1 ring-neutral-100">' + Shede.escapeHtml(e.message) + '</div>';
+          summary.textContent = '加载失败';
+        } finally {
+          state.loading = false;
+        }
+      }
+
+      // 切状态筛选，chip 的 class 整个换
+      filters.addEventListener('click', function (event) {
+        var btn = event.target.closest('[data-status]');
+        if (!btn) {
+          return;
+        }
+        state.status = btn.getAttribute('data-status');
+        filters.querySelectorAll('[data-status]').forEach(function (item) {
+          if (item === btn) {
+            item.className = 'chip-active rounded-full px-4 py-1.5 text-xs font-medium transition';
+          } else {
+            item.className = 'rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium text-neutral-600 transition hover:border-sky-300';
+          }
+        });
+        load();
+      });
+
+      // 列表也用委托，支付、取消、复制三个按钮都在这
+      orderList.addEventListener('click', async function (event) {
+        var payBtn = event.target.closest('[data-pay]');
+        var cancelBtn = event.target.closest('[data-cancel]');
+        var copyBtn = event.target.closest('[data-copy]');
+
+        if (payBtn) {
+          payBtn.disabled = true;
+          payBtn.textContent = '处理中…';
+          try {
+            await Shede.alipay.pay(payBtn.getAttribute('data-pay'), user.userId);
+          } catch (e) {
+            Shede.toast(e.message, 'error');
+            Shede.alipay.hideOverlay();
+            payBtn.disabled = false;
+            payBtn.textContent = '继续支付';
+          }
+          return;
+        }
+
+        if (cancelBtn) {
+          if (!confirm('确认取消这笔订单？库存会自动恢复。')) {
+            return;
+          }
+          cancelBtn.disabled = true;
+          cancelBtn.textContent = '处理中…';
+          try {
+            await Shede.api.closeOrder(cancelBtn.getAttribute('data-cancel'));
+            Shede.toast('订单已取消，库存已恢复');
+            load();
+          } catch (e) {
+            Shede.toast(e.message, 'error');
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = '取消订单';
+          }
+          return;
+        }
+
+        if (copyBtn) {
+          var orderNo = copyBtn.getAttribute('data-copy');
+          // 没剪贴板权限就把订单号直接弹出来
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(orderNo).then(function () {
+              Shede.toast('订单号已复制');
+            }).catch(function () {
+              Shede.toast(orderNo);
+            });
+          } else {
+            Shede.toast(orderNo);
+          }
+        }
+      });
+
+      document.getElementById('refreshBtn').addEventListener('click', load);
+      // 退出登录
+      document.getElementById('logoutBtn').addEventListener('click', function () {
+        if (confirm('确认退出登录？')) {
+          Shede.auth.logout();
+          location.href = 'login.html?redirect=orders.html';
+        }
+      });
+
+      load();
+    })();
+  </script>
+</body>
+</html>

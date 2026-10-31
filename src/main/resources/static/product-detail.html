@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>商品详情 · 舍得</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // 品牌色和卡片阴影
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7' }
+          },
+          boxShadow: { card: '0 18px 40px -24px rgba(2,132,199,.45)' }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* 选中的尺码，用内阴影描边，加 border 尺寸会变 */
+    .size-btn.is-active { border-color: #0ea5e9; color: #0284c7; background: #f0f9ff; box-shadow: inset 0 0 0 1px #0ea5e9; }
+    /* iPhone 底部安全区，不然按钮被挡住 */
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    /* 详情没加载完时的骨架 */
+    .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%); background-size: 400% 100%; animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  </style>
+</head>
+<body class="bg-neutral-50 text-neutral-900 antialiased">
+
+  <!-- 顶部导航，详情页不放搜索框 -->
+  <header class="sticky top-0 z-40 border-b border-neutral-200/70 bg-white/85 backdrop-blur">
+    <div class="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
+      <a href="index.html" class="grid h-9 w-9 place-items-center rounded-xl bg-neutral-100 text-neutral-500 transition hover:bg-neutral-200" aria-label="返回首页">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="index.html" class="flex items-center gap-2">
+        <span class="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-cyan-400 text-lg font-black text-white shadow-card">舍</span>
+        <span class="hidden text-xl font-black tracking-[0.15em] sm:block">舍得</span>
+      </a>
+      <div class="ml-auto flex items-center gap-2">
+        <a href="index.html" class="hidden rounded-full px-3 py-2 text-sm text-neutral-600 transition hover:bg-neutral-100 sm:block">回到首页</a>
+        <button id="authBtn" class="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700">登录</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:pb-10">
+    <!-- 面包屑，商品名加载后替换 -->
+    <nav class="mb-5 flex items-center gap-1.5 text-xs text-neutral-400">
+      <a href="index.html" class="transition hover:text-sky-600">首页</a>
+      <span>/</span>
+      <span id="crumbName" class="text-neutral-500">商品详情</span>
+    </nav>
+
+    <div class="grid gap-6 md:grid-cols-2 md:gap-10">
+      <!-- 商品图，演示用渐变占位 -->
+      <section>
+        <div id="heroImage" class="relative aspect-square overflow-hidden rounded-3xl bg-gradient-to-br from-sky-100 via-neutral-50 to-neutral-200 ring-1 ring-neutral-100">
+          <div class="absolute inset-0 grid place-items-center">
+            <span class="text-6xl font-black text-sky-200/90 drop-shadow-sm">舍得</span>
+          </div>
+          <span class="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-sky-600">正品保障</span>
+        </div>
+        <div class="mt-3 grid grid-cols-4 gap-3">
+          <div class="aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-sky-50 to-neutral-100 ring-2 ring-sky-300"></div>
+          <div class="aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200 opacity-70"></div>
+          <div class="aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200 opacity-70"></div>
+          <div class="aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200 opacity-70"></div>
+        </div>
+      </section>
+
+      <!-- 信息区，detailBody 会被整块换掉 -->
+      <section class="flex flex-col">
+        <div id="detailBody" class="space-y-5">
+          <div class="space-y-2">
+            <div class="skeleton h-7 w-3/4 rounded"></div>
+            <div class="skeleton h-4 w-1/2 rounded"></div>
+          </div>
+          <div class="skeleton h-10 w-1/3 rounded"></div>
+          <div class="skeleton h-24 rounded-2xl"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- 移动端底部购买栏，数据回来才显示 -->
+  <div id="mobileBar" class="fixed inset-x-0 bottom-0 z-30 hidden border-t border-neutral-200 bg-white/95 px-4 py-3 backdrop-blur safe-bottom sm:hidden">
+    <div class="flex items-center gap-3">
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-xs text-neutral-400">到手价</p>
+        <p id="mobilePrice" class="text-lg font-black text-sky-600">¥0.00</p>
+      </div>
+      <button id="mobileBuyBtn" class="rounded-full bg-sky-500 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-200 transition active:scale-95">立即购买</button>
+    </div>
+  </div>
+
+  <!-- 公共脚本 -->
+  <script src="js/app.js"></script>
+  <script>
+    (function () {
+      var Shede = window.Shede;
+      // 商品 id 在 URL 上
+      var params = new URLSearchParams(location.search);
+      var productId = params.get('productId');
+      var state = { product: null, detailId: null, quantity: 1 };
+
+      var detailBody = document.getElementById('detailBody');
+      var mobileBar = document.getElementById('mobileBar');
+      var mobilePrice = document.getElementById('mobilePrice');
+      var authBtn = document.getElementById('authBtn');
+
+      function renderAuthButton() {
+        var user = Shede.auth.getUser();
+        authBtn.textContent = user ? (user.nickname || user.username) : '登录';
+        authBtn.className = user
+          ? 'rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition hover:text-sky-600'
+          : 'rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700';
+      }
+
+      Shede.onAuthChange = function () { renderAuthButton(); };
+
+      authBtn.addEventListener('click', function () {
+        var user = Shede.auth.getUser();
+        if (user) {
+          if (confirm('当前账号：' + user.username + '\n点击确定退出登录')) {
+            Shede.auth.logout();
+            renderAuthButton();
+            Shede.toast('已退出登录');
+          }
+          return;
+        }
+        Shede.openAuth(function () { renderAuthButton(); });
+      });
+
+      // 卖完的规格置灰划掉，别隐藏
+      function sizeButtons(details) {
+        if (!details || !details.length) {
+          return '<p class="text-sm text-neutral-400">暂无可用规格</p>';
+        }
+        return details.map(function (item) {
+          var soldOut = !item.stock || item.stock <= 0;
+          var active = !soldOut && item.productDetailId === state.detailId;
+          return '' +
+            '<button type="button" data-size="' + Shede.escapeHtml(item.productDetailId) + '"' +
+            ' class="size-btn ' + (active ? 'is-active' : '') + ' rounded-xl border border-neutral-200 px-4 py-2.5 text-sm transition ' +
+            (soldOut ? 'cursor-not-allowed text-neutral-300 line-through' : 'text-neutral-700 hover:border-sky-300') + '"' +
+            ' data-stock="' + (item.stock || 0) + '"' + (soldOut ? ' disabled' : '') + '>' +
+            Shede.escapeHtml(item.size || '-') + '</button>';
+        }).join('');
+      }
+
+      // 渲染完要重新绑事件，节点是新的
+      function render(product) {
+        var details = product.productDetails || [];
+        // 默认选中第一个有货的规格
+        var available = details.filter(function (item) { return item.stock > 0; });
+        if (available.length) {
+          state.detailId = available[0].productDetailId;
+        }
+        document.getElementById('crumbName').textContent = product.name;
+        document.title = product.name + ' · 舍得';
+        mobilePrice.textContent = Shede.money(product.price);
+        // 数据回来才显示底部栏
+        mobileBar.classList.remove('hidden');
+
+        detailBody.innerHTML = '' +
+          '<div>' +
+          '  <h1 class="text-2xl font-black leading-snug sm:text-3xl">' + Shede.escapeHtml(product.name) + '</h1>' +
+          '  <p class="mt-2 text-sm text-neutral-500">' + Shede.escapeHtml(product.subtitle || '带来舒适体验的日常好物') + '</p>' +
+          '</div>' +
+          '<div class="flex flex-wrap items-end gap-3">' +
+          '  <span class="text-3xl font-black text-sky-600">' + Shede.money(product.price) + '</span>' +
+          '  <span class="pb-1 text-xs text-neutral-400">已售 ' + (product.sales || 0) + ' · 库存 ' + (product.stock || 0) + '</span>' +
+          '</div>' +
+          '<div class="rounded-2xl bg-white p-5 ring-1 ring-neutral-100">' +
+          '  <div class="flex items-center justify-between">' +
+          '    <p class="text-sm font-semibold">选择尺码</p>' +
+          '    <span class="text-[11px] text-neutral-400">库存变化请刷新页面</span>' +
+          '  </div>' +
+          '  <div id="sizeGroup" class="mt-3 flex flex-wrap gap-2">' + sizeButtons(details) + '</div>' +
+          '  <div class="mt-5 flex items-center justify-between">' +
+          '    <p class="text-sm font-semibold">购买数量</p>' +
+          '    <div class="flex items-center gap-3 rounded-full border border-neutral-200 px-2 py-1">' +
+          '      <button id="minusBtn" class="grid h-7 w-7 place-items-center rounded-full text-neutral-500 transition hover:bg-neutral-100">−</button>' +
+          '      <span id="qtyValue" class="w-6 text-center text-sm font-semibold">1</span>' +
+          '      <button id="plusBtn" class="grid h-7 w-7 place-items-center rounded-full text-neutral-500 transition hover:bg-neutral-100">＋</button>' +
+          '    </div>' +
+          '  </div>' +
+          '</div>' +
+          '<button id="buyBtn" class="hidden w-full rounded-2xl bg-sky-500 py-4 text-sm font-semibold text-white shadow-card transition hover:bg-sky-600 active:scale-[.99] sm:block">立即购买</button>' +
+          '<div class="rounded-2xl bg-white p-5 ring-1 ring-neutral-100">' +
+          '  <p class="text-sm font-semibold">商品参数</p>' +
+          '  <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">' +
+          '    <div class="flex justify-between border-b border-dashed border-neutral-100 pb-1.5"><dt class="text-neutral-400">品牌</dt><dd class="text-neutral-700">' + Shede.escapeHtml(product.brand || 'Shede') + '</dd></div>' +
+          '    <div class="flex justify-between border-b border-dashed border-neutral-100 pb-1.5"><dt class="text-neutral-400">分类</dt><dd class="text-neutral-700">' + Shede.escapeHtml(product.category || '好物') + '</dd></div>' +
+          '    <div class="flex justify-between border-b border-dashed border-neutral-100 pb-1.5"><dt class="text-neutral-400">商品编号</dt><dd class="text-neutral-700">' + Shede.escapeHtml(product.productId) + '</dd></div>' +
+          '    <div class="flex justify-between border-b border-dashed border-neutral-100 pb-1.5"><dt class="text-neutral-400">可选规格</dt><dd class="text-neutral-700">' + details.length + ' 种</dd></div>' +
+          '  </dl>' +
+          '</div>' +
+          '<ul class="space-y-2 text-xs text-neutral-500">' +
+          '  <li class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-sky-400"></span>正品保障 · 每件商品均经过验货</li>' +
+          '  <li class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-sky-400"></span>下单后 48 小时内发货</li>' +
+          '  <li class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-sky-400"></span>7 天无理由退换</li>' +
+          '</ul>';
+
+        bindEvents();
+      }
+
+      function bindEvents() {
+        var sizeGroup = document.getElementById('sizeGroup');
+        if (sizeGroup) {
+          sizeGroup.addEventListener('click', function (event) {
+            var btn = event.target.closest('[data-size]');
+            // 售罄按钮是 disabled，不会派发 click
+            if (!btn || btn.disabled) {
+              return;
+            }
+            state.detailId = btn.getAttribute('data-size');
+            sizeGroup.querySelectorAll('[data-size]').forEach(function (item) {
+              item.classList.toggle('is-active', item === btn);
+            });
+            // 换规格数量回 1，库存不一样
+            state.quantity = 1;
+            updateQty();
+          });
+        }
+
+        // 数量 1 到 99
+        var minus = document.getElementById('minusBtn');
+        var plus = document.getElementById('plusBtn');
+        if (minus) { minus.addEventListener('click', function () { state.quantity = Math.max(1, state.quantity - 1); updateQty(); }); }
+        if (plus) { plus.addEventListener('click', function () { state.quantity = Math.min(99, state.quantity + 1); updateQty(); }); }
+
+        var buy = document.getElementById('buyBtn');
+        if (buy) { buy.addEventListener('click', buyNow); }
+      }
+
+      function updateQty() {
+        var qty = document.getElementById('qtyValue');
+        if (qty) {
+          qty.textContent = state.quantity;
+        }
+      }
+
+      // 立即购买：先要登录，再去确认页
+      function buyNow() {
+        if (!state.product) {
+          return;
+        }
+        if (!state.detailId) {
+          Shede.toast('请先选择尺码', 'error');
+          return;
+        }
+        Shede.requireLogin(function () {
+          location.href = 'order-confirm.html?productId=' + encodeURIComponent(state.product.productId) +
+            '&productDetailId=' + encodeURIComponent(state.detailId) +
+            '&quantity=' + state.quantity;
+        });
+      }
+
+      var mobileBuy = document.getElementById('mobileBuyBtn');
+      if (mobileBuy) {
+        mobileBuy.addEventListener('click', buyNow);
+      }
+
+      // 没 id 就回首页，接口报错就渲染卡片
+      async function load() {
+        if (!productId) {
+          Shede.toast('缺少商品参数 productId', 'error');
+          setTimeout(function () { location.href = 'index.html'; }, 1200);
+          return;
+        }
+        try {
+          var product = await Shede.api.productDetail(productId);
+          state.product = product;
+          state.detailId = null;
+          render(product);
+        } catch (e) {
+          detailBody.innerHTML = '<div class="rounded-2xl bg-white p-8 text-center ring-1 ring-neutral-100">' +
+            '<p class="text-sm text-rose-500">' + Shede.escapeHtml(e.message) + '</p>' +
+            '<a href="index.html" class="mt-4 inline-block rounded-full bg-sky-500 px-5 py-2 text-sm font-medium text-white">返回首页</a>' +
+            '</div>';
+        }
+      }
+
+      // 初始化：先画登录态再拉详情
+      renderAuthButton();
+      load();
+    })();
+  </script>
+</body>
+</html>

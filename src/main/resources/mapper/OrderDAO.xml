@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youkeda.shede.dao.OrderDAO">
+
+    <!-- order 是关键字，表名得写成 `order` -->
+    <sql id="Base_Column_List">
+        id, order_id, user_id, product_id, product_detail_id, product_name, product_image, size, quantity,
+        unit_price, total_amount, status, pay_time, cancel_time, gmt_created, gmt_modified
+    </sql>
+
+    <!-- 传了条件才筛，小于号要转义 -->
+    <sql id="Query_Where">
+        <where>
+            <if test="userId != null and userId != ''">
+                AND user_id = #{userId}
+            </if>
+            <if test="orderId != null and orderId != ''">
+                AND order_id = #{orderId}
+            </if>
+            <if test="productId != null and productId != ''">
+                AND product_id = #{productId}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="startTime != null">
+                AND gmt_created &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND gmt_created &lt;= #{endTime}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 表名带反引号，status 由 Service 给 0 -->
+    <insert id="insert" parameterType="com.youkeda.shede.dataobject.OrderDO"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `order` (order_id, user_id, product_id, product_detail_id, product_name, product_image,
+                             size, quantity, unit_price, total_amount, status)
+        VALUES (#{orderId}, #{userId}, #{productId}, #{productDetailId}, #{productName}, #{productImage},
+                #{size}, #{quantity}, #{unitPrice}, #{totalAmount}, #{status})
+    </insert>
+
+    <select id="selectByOrderId" resultType="com.youkeda.shede.dataobject.OrderDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `order` WHERE order_id = #{orderId} LIMIT 1
+    </select>
+
+    <select id="selectByParam" parameterType="com.youkeda.shede.param.QueryOrderParam"
+            resultType="com.youkeda.shede.dataobject.OrderDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `order`
+        <include refid="Query_Where"/>
+        ORDER BY id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByParam" parameterType="com.youkeda.shede.param.QueryOrderParam" resultType="int">
+        SELECT COUNT(*) FROM `order`
+        <include refid="Query_Where"/>
+    </select>
+
+    <!-- status 传了才筛，不传就是全部 -->
+    <select id="selectByUserId" resultType="com.youkeda.shede.dataobject.OrderDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `order`
+        WHERE user_id = #{userId}
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <!-- 后台硬改，没状态校验，正常流程别用 -->
+    <update id="updateStatus">
+        UPDATE `order` SET status = #{status} WHERE order_id = #{orderId}
+    </update>
+
+    <!-- 只有待付款能改，重复回调返回 0 -->
+    <update id="updatePaid">
+        UPDATE `order` SET status = 1, pay_time = #{payTime} WHERE order_id = #{orderId} AND status = 0
+    </update>
+
+    <!-- 只有待付款能关，返回 0 就别回补库存 -->
+    <update id="updateCancelled">
+        UPDATE `order` SET status = 2, cancel_time = #{cancelTime} WHERE order_id = #{orderId} AND status = 0
+    </update>
+
+    <delete id="deleteByOrderId">
+        DELETE FROM `order` WHERE order_id = #{orderId}
+    </delete>
+
+</mapper>

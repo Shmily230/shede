@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youkeda.shede.dao.ProductDAO">
+
+    <!-- 查的列跟 ProductDO 对上 -->
+    <sql id="Base_Column_List">
+        id, product_id, name, subtitle, brand, category, price, stock, sales, main_image, status, gmt_created, gmt_modified
+    </sql>
+
+    <!-- 传了哪个条件才按哪个筛 -->
+    <sql id="Query_Where">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+            <if test="brand != null and brand != ''">
+                AND brand = #{brand}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+    </sql>
+
+    <insert id="insert" parameterType="com.youkeda.shede.dataobject.ProductDO"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product (product_id, name, subtitle, brand, category, price, stock, sales, main_image, status)
+        VALUES (#{productId}, #{name}, #{subtitle}, #{brand}, #{category}, #{price}, #{stock}, #{sales},
+                #{mainImage}, #{status})
+    </insert>
+
+    <select id="selectById" resultType="com.youkeda.shede.dataobject.ProductDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM product WHERE id = #{id}
+    </select>
+
+    <select id="selectByProductId" resultType="com.youkeda.shede.dataobject.ProductDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM product WHERE product_id = #{productId} LIMIT 1
+    </select>
+
+    <!-- 分页靠 LIMIT，条件跟 countByParam 共用 -->
+    <select id="selectByParam" parameterType="com.youkeda.shede.param.QueryProductParam"
+            resultType="com.youkeda.shede.dataobject.ProductDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM product
+        <include refid="Query_Where"/>
+        ORDER BY id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 跟上面一样，就是不写 LIMIT -->
+    <select id="selectList" parameterType="com.youkeda.shede.param.QueryProductParam"
+            resultType="com.youkeda.shede.dataobject.ProductDO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM product
+        <include refid="Query_Where"/>
+        ORDER BY id DESC
+    </select>
+
+    <select id="countByParam" parameterType="com.youkeda.shede.param.QueryProductParam" resultType="int">
+        SELECT COUNT(*) FROM product
+        <include refid="Query_Where"/>
+    </select>
+
+    <!-- 库存够才扣，顺手把销量加上 -->
+    <update id="decreaseStock">
+        UPDATE product
+        SET stock = stock - #{quantity}, sales = sales + #{quantity}
+        WHERE product_id = #{productId} AND stock >= #{quantity}
+    </update>
+
+    <!-- 库存够才扣，不够返回 0 -->
+    <update id="decreaseStockById">
+        UPDATE product
+        SET stock = stock - #{quantity}
+        WHERE id = #{id} AND stock >= #{quantity}
+    </update>
+
+    <!-- 回补不加条件，别重复调 -->
+    <update id="increaseStockById">
+        UPDATE product SET stock = stock + #{quantity} WHERE id = #{id}
+    </update>
+
+    <update id="increaseStock">
+        UPDATE product SET stock = stock + #{quantity} WHERE product_id = #{productId}
+    </update>
+
+    <update id="increaseSales">
+        UPDATE product SET sales = sales + #{quantity} WHERE product_id = #{productId}
+    </update>
+
+    <!-- 只更新传了值的字段 -->
+    <update id="updateById" parameterType="com.youkeda.shede.dataobject.ProductDO">
+        UPDATE product
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="subtitle != null">subtitle = #{subtitle},</if>
+            <if test="brand != null">brand = #{brand},</if>
+            <if test="category != null">category = #{category},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="stock != null">stock = #{stock},</if>
+            <if test="sales != null">sales = #{sales},</if>
+            <if test="mainImage != null">main_image = #{mainImage},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByProductId">
+        DELETE FROM product WHERE product_id = #{productId}
+    </delete>
+
+</mapper>
