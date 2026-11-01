@@ -3,7 +3,7 @@ package com.youkeda.shede.param;
 import java.io.Serializable;
 
 // 分页查询的父类，列表参数都继承它
-public class PageParam implements Serializable {
+public class BasePageParam implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

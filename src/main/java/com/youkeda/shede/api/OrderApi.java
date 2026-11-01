@@ -1,4 +1,4 @@
-package com.youkeda.shede.control;
+package com.youkeda.shede.api;
 
 import com.youkeda.shede.model.Order;
 import com.youkeda.shede.model.Result;
@@ -19,7 +19,7 @@ import java.util.List;
 // 库存和金额都在 service 算，这里只转参数
 @RestController
 @RequestMapping("/api/order")
-public class OrderController {
+public class OrderApi {
 
     @Resource
     private OrderService orderService;

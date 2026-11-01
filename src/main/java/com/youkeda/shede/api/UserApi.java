@@ -1,4 +1,4 @@
-package com.youkeda.shede.control;
+package com.youkeda.shede.api;
 
 import com.youkeda.shede.model.Result;
 import com.youkeda.shede.model.User;
@@ -15,10 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 
 // 用户接口：注册、登录、按 id 查
-// 返回对象直接变 JSON，不用再写 @ResponseBody
 @RestController
 @RequestMapping("/api/user")
-public class UserController {
+public class UserApi {
 
     // 让 Spring 注进来，别自己 new
     @Resource

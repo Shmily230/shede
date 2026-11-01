@@ -5,9 +5,10 @@ import com.alipay.api.domain.AlipayTradePagePayModel;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.alipay.api.request.AlipayTradePagePayRequest;
 import com.alipay.api.response.AlipayTradePagePayResponse;
-import com.youkeda.shede.config.AlipayConfig;
+import com.youkeda.shede.AlipayConfig;
 import com.youkeda.shede.dao.OrderDAO;
-import com.youkeda.shede.dao.PaymentRecordDAO;
+import com.youkeda.shede.model.PayType;
+import com.youkeda.shede.service.PaymentRecordService;
 import com.youkeda.shede.dao.ProductDAO;
 import com.youkeda.shede.dao.ProductDetailDAO;
 import com.youkeda.shede.dataobject.OrderDO;
@@ -16,7 +17,7 @@ import com.youkeda.shede.model.BizException;
 import com.youkeda.shede.model.OrderStatus;
 import com.youkeda.shede.model.PayResult;
 import com.youkeda.shede.model.PaymentStatus;
-import com.youkeda.shede.model.UUIDUtils;
+import com.youkeda.shede.util.UUIDUtils;
 import com.youkeda.shede.param.PaymentParam;
 import com.youkeda.shede.service.PayService;
 import org.slf4j.Logger;
@@ -59,7 +60,7 @@ public class PayServiceImpl implements PayService {
     private OrderDAO orderDAO;
 
     @Resource
-    private PaymentRecordDAO paymentRecordDAO;
+    private PaymentRecordService paymentRecordService;
 
     @Resource
     private ProductDAO productDAO;
@@ -87,7 +88,7 @@ public class PayServiceImpl implements PayService {
         }
 
         PaymentRecordDO recordDO = buildPendingRecord(orderDO);
-        paymentRecordDAO.insert(recordDO);
+        paymentRecordService.insert(recordDO);
 
         AlipayTradePagePayModel model = new AlipayTradePagePayModel();
         // 用 paymentId 不用 orderId，一单可能拉起好几次收银台
@@ -149,7 +150,7 @@ public class PayServiceImpl implements PayService {
         LOGGER.info("alipay notify verified, paymentId={}, tradeNo={}, tradeStatus={}",
                 paymentId, tradeNo, tradeStatus);
 
-        PaymentRecordDO recordDO = paymentRecordDAO.selectByPaymentId(paymentId);
+        PaymentRecordDO recordDO = paymentRecordService.queryByPaymentId(paymentId);
         if (recordDO == null) {
             LOGGER.error("alipay notify: payment record not found, paymentId={}", paymentId);
             return false;
@@ -174,7 +175,7 @@ public class PayServiceImpl implements PayService {
         String notifyBody = String.valueOf(params);
         if (TRADE_SUCCESS.equals(tradeStatus) || TRADE_FINISHED.equals(tradeStatus)) {
             // 先改流水再改订单，流水是幂等的锚点
-            paymentRecordDAO.updatePayStatus(paymentId, PaymentStatus.SUCCESS.getCode(),
+            paymentRecordService.updatePayStatus(paymentId, PaymentStatus.SUCCESS.getCode(),
                     tradeNo, new Date(), notifyBody);
             int updated = orderDAO.updatePaid(recordDO.getOrderId(), new Date());
             if (updated == 0) {
@@ -185,7 +186,7 @@ public class PayServiceImpl implements PayService {
         }
 
         if (TRADE_CLOSED.equals(tradeStatus)) {
-            paymentRecordDAO.updatePayStatus(paymentId, PaymentStatus.FAILED.getCode(),
+            paymentRecordService.updatePayStatus(paymentId, PaymentStatus.FAILED.getCode(),
                     tradeNo, null, notifyBody);
             closeOrderInternal(recordDO.getOrderId());
             LOGGER.info("payment closed, paymentId={}, orderId={}", paymentId, recordDO.getOrderId());
@@ -228,11 +229,11 @@ public class PayServiceImpl implements PayService {
             LOGGER.warn("order {} changed status concurrently, stock restored but status kept", orderId);
         }
 
-        List<PaymentRecordDO> records = paymentRecordDAO.selectByOrderId(orderId);
+        List<PaymentRecordDO> records = paymentRecordService.queryByOrderId(orderId);
         for (PaymentRecordDO record : records) {
             if (record.getPayStatus() != null
                     && record.getPayStatus() == PaymentStatus.PENDING.getCode()) {
-                paymentRecordDAO.updatePayStatus(record.getPaymentId(),
+                paymentRecordService.updatePayStatus(record.getPaymentId(),
                         PaymentStatus.FAILED.getCode(), null, null, null);
             }
         }
@@ -247,7 +248,7 @@ public class PayServiceImpl implements PayService {
         recordDO.setOrderId(orderDO.getOrderId());
         recordDO.setUserId(orderDO.getUserId());
         recordDO.setPayAmount(orderDO.getTotalAmount());
-        recordDO.setPayChannel("ALIPAY");
+        recordDO.setPayChannel(PayType.ALIPAY.getCode());
         // 支付宝要求标题非空，兜个底
         recordDO.setSubject(orderDO.getProductName() == null ? "舍得订单" : orderDO.getProductName());
         recordDO.setPayStatus(PaymentStatus.PENDING.getCode());

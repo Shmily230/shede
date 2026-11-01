@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 // 我的订单用的查询条件
-public class QueryOrderParam extends PageParam implements Serializable {
+public class QueryOrderParam extends BasePageParam implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

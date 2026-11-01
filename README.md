@@ -60,21 +60,33 @@ shede/
 └── src/main/
     ├── java/com/youkeda/shede/
     │   ├── Application.java
-    │   ├── api/                  ProductApi（商品开放接口）
-    │   ├── control/              UserController / OrderController / PayController
-    │   │                         GlobalExceptionHandler（全局异常）
-    │   ├── service/ + impl/      User / Product / Order / Pay 四组服务
+    │   ├── AlipayConfig.java     支付宝客户端 Bean
+    │   ├── api/                  5 个接口类：UserApi / ProductApi / ProductDetailApi / OrderApi / PaymentApi
+    │   ├── control/              PaymentController（支付宝跳转+回调）、GlobalExceptionHandler、WebLogAspect
+    │   ├── service/ + impl/      6 组服务：User / Product / ProductDetail / Order / PaymentRecord / Pay
     │   ├── dao/                  5 个 Mapper 接口
     │   ├── dataobject/           5 个 DO（严格对应表字段）
-    │   ├── model/                业务模型 + Result/PageResult/Paging/枚举/工具
-    │   ├── param/                请求参数对象
-    │   ├── config/               AlipayConfig（AlipayClient Bean）
-    │   └── aop/                  WebLogAspect（请求日志 + 耗时）
+    │   ├── model/                业务模型 + 枚举 + Result/PageResult/Paging/PayResult/BizException
+    │   ├── param/                7 个请求参数（BasePageParam 是分页基类）
+    │   └── util/                 UUIDUtils / MD5Utils
     └── resources/
         ├── application.properties
-        ├── mapper/*.xml          5 个 Mapper XML
-        └── static/               前端 6 个页面
+        ├── com/youkeda/shede/dao/  5 个 Mapper XML（路径与包名一致）
+        └── static/               6 个前端页面 + js/app.js
 ```
+
+**分层职责**
+
+| 包 | 干什么 | 一句话 |
+|---|---|---|
+| `api` | HTTP 入口，返回 JSON | 接参数、调 service、包 `Result` |
+| `control` | 面向第三方/页面的入口 | 支付宝回调与跳转页（返回纯文本/HTML） |
+| `service` + `impl` | 业务规则、事务、并发控制 | 扣库存、算金额、验签、幂等都在这里 |
+| `dao` | 数据库访问接口 | 只有方法签名，SQL 在 XML |
+| `dataobject` | 表结构映射（DO） | 有 id / 密码 / 时间字段 |
+| `model` | 给前端的数据 + 公共件 | 无密码、状态带中文、统一 `Result` |
+| `param` | 请求参数 | 收参白名单，防前端篡改价格/状态 |
+| `util` | 工具类 | 业务号、密码哈希 |
 
 ---
 

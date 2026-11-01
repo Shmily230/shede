@@ -3,7 +3,7 @@ package com.youkeda.shede.param;
 import java.io.Serializable;
 
 // 商品列表的查询条件，都是可选的
-public class QueryProductParam extends PageParam implements Serializable {
+public class QueryProductParam extends BasePageParam implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

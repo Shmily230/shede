@@ -1,4 +1,4 @@
-package com.youkeda.shede.config;
+package com.youkeda.shede;
 
 import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
